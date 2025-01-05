@@ -1,0 +1,32 @@
+---
+title: Setting up
+description: "Set up your Laravel installation to work with Firepit CMS"
+---
+
+1. Extend your user model from the Firepit User model:
+
+```php
+<?php
+
+namespace App\Models;
+
+use Firepit\Cms\Models\User as FirePitUser;
+
+class User extends FirePitUser
+{
+}
+```
+
+Add this class to the `$middleware` array:
+
+```php
+Route::middleware([\Firepit\Cms\Http\Middleware\SiteMiddleware::class])->group(function(){
+    // Your routes
+});
+```
+
+If you're using multi-language, also add this middleware:
+
+```php
+\Firepit\Cms\Http\Middleware\SiteLanguageMiddleware::class
+```

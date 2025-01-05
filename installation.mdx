@@ -1,0 +1,189 @@
+---
+title: Installation
+description: "Getting started with Firepit CMS"
+---
+
+## Installation
+
+[1] Installing the package requires to add these fields to your composer.json:
+
+```
+"repositories": [
+    {
+        "type": "vcs",
+        "url":  "git@github.com:WebBuildsNL/firepit-cms.git"
+    },
+    {
+        "type": "composer",
+        "url": "https://satis.ralphjsmit.com"
+    }
+]
+```
+
+[2] Then require it:
+
+```
+"require": {
+    "firepit/cms": "{VERSION}"
+}
+```
+
+[3] {VERSION} could be either a version number, or `dev-master` to always grab latest.
+
+[4] Run composer update (On windows you need to add `-–ignore-platform-reqs ext-pcntl`, because this extension is not available on windows)
+
+[5] Run `php artisan cms:install`
+
+## Installation Development Environment
+
+There are two approaches to set up the development environment:
+
+### Option 1: Using Git Submodules (Recommended)
+
+This approach allows you to maintain separate Git repositories while keeping them connected:
+
+1. From your Laravel project root, initialize the submodule:
+```bash
+git submodule add https://github.com/WebBuildsNL/firepit-cms.git packages/firepit-cms
+```
+
+2. Initialize and update the submodule:
+```bash
+git submodule init
+git submodule update
+```
+
+3. Add to composer.json:
+```json
+{
+    "require": {
+        "firepit/cms": "*"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "./packages/firepit-cms",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "composer",
+            "url": "https://satis.ralphjsmit.com"
+        }
+    ]
+}
+```
+
+4. Run `composer update`
+
+5. Extend your user model from the Firepit User model:
+
+```php
+<?php
+
+namespace App\Models;
+
+use Firepit\Cms\Models\User as FirePitUser;
+
+class User extends FirePitUser
+{
+}
+```
+
+Working with the submodule:
+- To update the submodule to latest: `git submodule update --remote`
+- To commit changes in the submodule:
+```bash
+cd packages/firepit-cms
+git checkout master  # or your working branch
+# Make your changes
+git add .
+git commit -m "Your commit message"
+git push
+  ```
+- Don't forget to commit the submodule reference in your main project:
+```bash
+cd ../..  # back to main project
+git add packages/firepit-cms
+git commit -m "Update firepit-cms submodule"
+  ```
+
+### Option 2: Simple Clone (For Quick Testing)
+
+1. Run the following commands from Laravel project root:
+```bash
+mkdir packages && cd packages
+git clone https://github.com/WebBuildsNL/firepit-cms.git
+```
+
+2. Follow steps 3 and 4 from Option 1.
+
+Note: This method doesn't maintain the connection between repositories. Use Option 1 (Git Submodules) for proper version control.
+
+## Production
+
+Initiate the submodule:
+`git submodule set-url packages/firepit-cms git@github.com:WebBuildsNL/firepit-cms.git`
+
+Deploy script:
+
+```sh
+git pull origin main
+git submodule update --init --recursive
+composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+```
+
+
+## Recommended scheduled commands to run
+
+You can enter these commands inside your Kernel.php to make sure your CMS stays optimal.
+
+**cms:remove-old-drafts**
+
+Removes all the old draft models older than 1 month
+
+```php
+$schedule->command('cms:remove-old-drafts')->weekly();
+```
+
+## Updating the package
+
+You can just run `composer update` or `composer update firepit/cms` to update the package.
+
+You must also run `php artisan cms:upgrade` so all new assets and migrations will be run.
+
+If you want to automate this, you can enter this into your composer.json scripts section:
+
+```json
+    "scripts": {
+        ...
+        "post-update-cmd" : [
+            "@php artisan cms:upgrade"
+        ],
+        ...
+    },
+```
+
+## Package routes
+
+|                   Route                   | Name           | Description                                                                 |
+|:-----------------------------------------:|----------------|-----------------------------------------------------------------------------|
+|   payment/check      | `payment.check` | Used for PSP to send updates too, this method will handle order processing. |
+
+## Package helpers
+
+|       Function       | Description                                                                           |
+|:--------------------:|---------------------------------------------------------------------------------------|
+| `getVisitorLocale()` | Get the visitor locale from the browser, for example: `nl`, `en`, `be`                |
+| `canonical()` | Safe method to generate a canonical URL for your routes, can be used in the meta tags |
+| `firepitModel()` | Used to return the model from the firepit package                                     |
+| `money()` | Render money strings properly                                                         |
+
+
+## Package Events
+
+|               Event               | Description                                                 | Variables available                       |
+|:---------------------------------:|-------------------------------------------------------------|-------------------------------------------|
+| Firepit\Cms\Events\ModelWasViewed | Gets triggered once the updateViews() was called on a model | $modelView (Firepit\Cms\Models\ModelView) |
+| Firepit\Cms\Events\ModelCommentWasCreated | Gets triggered once a model comment was created | $modelComment (Firepit\Cms\Models\ModelComment) |
