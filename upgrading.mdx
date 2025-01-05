@@ -1,0 +1,22 @@
+---
+title: "Updating & upgrading"
+description: "Update the CMS package"
+---
+
+## Updating the package
+
+You can just run `composer update` or `composer update firepit/cms` to update the package.
+
+You must also run `php artisan cms:upgrade` so all new assets and migrations will be run.
+
+If you want to automate this, you can enter this into your composer.json scripts section:
+
+```json
+    "scripts": {
+        ...
+        "post-update-cmd" : [
+            "@php artisan cms:upgrade"
+        ],
+        ...
+    },
+```

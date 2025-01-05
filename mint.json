@@ -28,7 +28,8 @@
       "pages": [
         "introduction",
         "installation",
-        "setting-up"
+        "setting-up",
+        "upgrading"
       ]
     },
     {
@@ -36,6 +37,7 @@
       "pages": [
         "essentials/multi-language",
         "essentials/events",
+        "essentials/package-helpers",
         "essentials/routes"
       ]
     }
