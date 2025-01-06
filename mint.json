@@ -35,6 +35,7 @@
     {
       "group": "Essentials",
       "pages": [
+        "essentials/packages",
         "essentials/multi-language",
         "essentials/events",
         "essentials/package-helpers",
