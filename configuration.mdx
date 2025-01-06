@@ -1,0 +1,65 @@
+---
+title: Configuration
+description: "Firepit CMS comes with a configuration file which you can change to adjust to your needs"
+---
+
+When you've run `php artisan cms:install` command, a new file `config/cms.php` will be published. The basic config file
+looks like this:
+
+```php
+<?php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Site
+    |--------------------------------------------------------------------------
+    |
+    | This key holds the site model in memory. You do not need to modify
+    | this configuration, it will be overridden anyway.
+    |
+    */
+    'site' => null,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bots skip language
+    |--------------------------------------------------------------------------
+    |
+    | This will make sure that bots skip the language middleware on your site
+    | if you have this enabled.
+    |
+    */
+    'bots_skip_language' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Firepit Middleware
+    |--------------------------------------------------------------------------
+    |
+    | All the assigned middleware to the manage routes
+    |
+    */
+    'middleware' => [
+        'manage' => [
+            'web',
+            \Firepit\Cms\Http\Middleware\Authenticate::class,
+            'can:accessToManage',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Firepit available menu's
+    |--------------------------------------------------------------------------
+    |
+    | All the available menu locations. You can expand this to
+    | add more menu's where needed.
+    |
+    */
+    'menu-locations' => [
+        'header' => 'Header',
+        'footer' => 'Footer',
+    ],
+];
+```
