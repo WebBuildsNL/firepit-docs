@@ -1,0 +1,38 @@
+---
+title: 'Slugs'
+description: 'Describes how slugs work in the Firepit CMS'
+icon: 'cubes-stacked'
+---
+
+Slugs in the Firepit CMS are smart. They are stored inside the `slugs` table and there's an additional `slug_redirects`
+table to handle redirects.
+
+## Retrieving a model
+
+The most basic way to retrieve a model based on a slug:
+
+```php
+Page::findBySlug('my-slug');
+```
+
+However, sometimes when a slug isn't found you want to return a 404:
+
+```php
+Page::findBySlugOrFail('my-slug');
+```
+
+Additionally, you can also extend this to support slugs that have changed and redirect to it:
+
+```php
+Page::findBySlugOrRedirectOrFail('my-slug');
+```
+
+## What models support slugs
+
+- Pages
+- News
+- Projects
+- Courses
+- Course categories
+- Shop products
+- Shop categories

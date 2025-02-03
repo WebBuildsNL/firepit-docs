@@ -34,6 +34,12 @@
       ]
     },
     {
+      "group": "Basics",
+      "pages": [
+        "basics/slugs"
+      ]
+    },
+    {
       "group": "Essentials",
       "pages": [
         "essentials/packages",
