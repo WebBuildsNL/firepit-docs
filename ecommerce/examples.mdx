@@ -1,0 +1,272 @@
+---
+title: 'Examples'
+description: 'Full component examples'
+icon: 'vials'
+---
+
+Here's a set of Livewire components.
+
+## Cart component:
+
+<CodeGroup>
+    ```php Livewire class
+    <?php
+
+    namespace App\Livewire;
+
+    use Filament\Actions\Action;
+    use Filament\Actions\Concerns\InteractsWithActions;
+    use Filament\Actions\Contracts\HasActions;
+    use Filament\Forms\Concerns\InteractsWithForms;
+    use Filament\Forms\Contracts\HasForms;
+    use Filament\Notifications\Notification;
+    use Filament\Support\Enums\Alignment;
+    use Firepit\Cms\Models\ShopDiscountCode;
+    use Livewire\Component;
+    use LukePOLO\LaraCart\Coupons\Fixed as Coupon;
+    use LukePOLO\LaraCart\Facades\LaraCart;
+
+    class Cart extends Component implements HasActions, HasForms
+    {
+        use InteractsWithActions, InteractsWithForms;
+
+        public $discount = '';
+
+        public function applyDiscount(): void
+        {
+            if (! $this->discount) {
+                return;
+            }
+
+            $this->validate([
+                'discount' => [
+                    'required',
+                    'string',
+                    function ($attribute, $value, $fail) {
+                        if (! ShopDiscountCode::whereCode($value)->exists()) {
+                            $fail('Deze kortingscode is niet geldig.');
+                        }
+                    },
+                ],
+            ]);
+
+            $code = ShopDiscountCode::whereCode($this->discount)->firstOrFail();
+
+            $this->removeDiscount();
+
+            if($code->percentage){
+                $discount = round(($code->percentage / 100) * LaraCart::total(false, false), 3);
+                $coupon = new Coupon($code->percentage, $discount);
+            }else{
+                $discount = $code->price;
+                $coupon = new Coupon($code->price, $discount);
+            }
+
+            LaraCart::addCoupon($coupon);
+
+            session()->put('discount', [
+                'discount' => $code->code,
+                'percentage' => $code->percentage,
+                'total_discount' => $discount,
+            ]);
+
+            $this->discount = '';
+        }
+
+        public function removeDiscount(): void
+        {
+            LaraCart::removeCoupons();
+            session()->forget('discount');
+            $this->discount = '';
+        }
+
+        public function removeDiscountAction(): Action
+        {
+            return Action::make('removeDiscount')
+                ->requiresConfirmation()
+                ->color('danger')
+                ->link()
+                ->label('Verwijder')
+                ->modalHeading('Korting verwijderen')
+                ->modalIcon('heroicon-o-banknotes')
+                ->modalAlignment(Alignment::Left)
+                ->action(function () {
+                    $this->removeDiscount();
+                });
+        }
+
+        public function removeItemAction(): Action
+        {
+            return Action::make('removeItem')
+                ->requiresConfirmation()
+                ->color('danger')
+                ->hiddenLabel()
+                ->tooltip('Verwijder dit artikel uit de winkelwagen')
+                ->icon('heroicon-o-trash')
+                ->modalHeading('Item verwijderen uit winkelwagen')
+                ->modalIcon('heroicon-o-shopping-cart')
+                ->modalAlignment(Alignment::Left)
+                ->action(function (array $arguments) {
+                    LaraCart::removeItem($arguments['item']);
+
+                    LaraCart::removeCoupons();
+                    session()->forget('discount');
+
+                    Notification::make('removed')
+                    ->title('Winkelwagen')
+                    ->body('Item is verwijderd uit je winkelmand')
+                    ->success()
+                    ->send();
+                });
+        }
+
+        public function render()
+        {
+            return view('livewire.cart');
+        }
+    }
+    ```
+
+    ```html Blade
+    <div class="mt-12 lg:grid lg:grid-cols-12 lg:gap-x-12 lg:items-start xl:gap-x-16">
+        <section aria-labelledby="cart-heading" class="@if(LaraCart::count() > 0) lg:col-span-7 @else col-span-full @endif">
+            <h2 id="cart-heading" class="sr-only">Artikelen in uw winkelwagen</h2>
+
+            @include('errors.validation-errors')
+
+            @if(LaraCart::count() > 0)
+            <ul role="list" class="divide-y divide-gray-200">
+                @foreach(LaraCart::getItems() as $item)
+                <li class="flex py-6 sm:py-10">
+                    <div class="shrink-0">
+                        <img alt="{{ $item->name }}"
+                             src="{{ $item->image }}"
+                             class="size-24 rounded-md object-cover sm:size-48">
+                    </div>
+
+                    <div class="ml-4 flex flex-1 flex-col justify-between sm:ml-6">
+                        <div class="relative pr-9 sm:pr-0">
+                            <div>
+                                <div class="flex justify-between">
+                                    <h3 class="text-lg">
+                                        <a href="{{ $item->url }}" class="font-medium text-gray-700 hover:text-gray-800">{{ $item->name }} ({{ $item->qty }}x)</a>
+                                    </h3>
+                                </div>
+                                <div class="mt-1 flex text-sm">
+                                    <p class="text-gray-500">
+                                        {{ new \Illuminate\Support\HtmlString($item->model->description) }}
+                                    </p>
+                                </div>
+                                @php
+                                $extra = 0;
+                                @endphp
+                                @if($item->subItems)
+                                <p class="font-semibold text-gray-800 py-2">Geselecteerde extra's</p>
+                                <ul class="list-disc list-inside mb-4 text-gray-700">
+                                    @foreach($item->subItems as $subItem)
+                                    <li>{{ $subItem->description }} - {{ money($subItem->price * $subItem->qty, true) }} ({{ $subItem->qty }}x)</li>
+                                    @php $extra += ($subItem->price * $subItem->qty); @endphp
+                                    @endforeach
+                                </ul>
+                                @endif
+
+                                <p class="mt-1 text-lg font-medium text-gray-900">Totaal: {{ money( (($item->price * $item->qty ) + $extra), true) }}</p>
+                            </div>
+
+                            <div class="absolute right-0 top-0">
+                                {{ ($this->removeItemAction)(['item' => $item->getHash()]) }}
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                @endforeach
+            </ul>
+            @else
+            <div class="min-h-[400px] flex items-center justify-center">
+                <div class="text-center max-w-md mx-auto px-4">
+                    <svg class="mx-auto h-16 w-16 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                    </svg>
+
+                    <h2 class="mt-6 text-2xl font-semibold text-gray-900">Winkelwagen is leeg</h2>
+                    <p class="mt-2 text-gray-600">Begin met winkelen om artikelen toe te voegen.</p>
+                </div>
+            </div>
+            @endif
+        </section>
+
+        @if(LaraCart::count() > 0)
+        <section aria-labelledby="summary-heading" class="mt-16 bg-gray-50 rounded-lg px-4 py-6 sm:p-6 lg:p-8 lg:mt-0 lg:col-span-5">
+            <h2 id="summary-heading" class="text-lg font-medium text-gray-900">Samenvatting</h2>
+
+            <dl class="mt-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <dt class="text-sm text-gray-600">Subtotaal</dt>
+                    <dd class="text-sm font-medium text-gray-900">
+                        {{ money(LaraCart::subTotal(false, false), true) }}
+                    </dd>
+                </div>
+
+                @if(session('discount'))
+                <div class="border-t border-gray-200 pt-4 flex items-center justify-between">
+                    <dt class="flex-1 text-base font-medium text-gray-900">
+                        Korting <span class="font-normal text-sm bg-red-100 text-red-800 border border-red-500 rounded px-1 py-0.5">{{ session('discount.discount') }}</span>
+
+                        @if(session('discount'))
+                        {{ $this->removeDiscountAction }}
+                        @endif
+                    </dt>
+                    <dd class="text-base font-medium text-gray-900">
+                        -{{ money(array_get(session('discount'), 'total_discount'), true) }}
+                    </dd>
+                </div>
+                @endif
+
+                <div class="border-t border-gray-200 pt-4 flex items-center justify-between">
+                    <dt class="text-base font-medium text-gray-900">Totaal</dt>
+                    <dd class="text-base font-medium text-gray-900">
+                        {{ money(LaraCart::total(false, true) + LaraCart::getAttribute('shipping_costs'), true) }}
+                    </dd>
+                </div>
+            </dl>
+
+            <!-- Discount Form -->
+            <form class="mt-6" method="post" wire:submit="applyDiscount">
+                @csrf
+                <div class="space-y-4">
+                    <div>
+                        <label for="discount" class="block text-sm font-medium text-gray-700">
+                            Kortingscode
+                        </label>
+                        <div class="mt-1">
+                            <input type="text"
+                                   id="discount"
+                                   placeholder="Kortingscode"
+                                   wire:model="discount"
+                                   name="discount"
+                                   class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"/>
+                        </div>
+                        <div class="text-red-500 text-sm mt-1">
+                            @error('discount') {{ $message }} @enderror
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-3">
+                        <button type="submit" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            Toepassen
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="mt-6">
+                <a href="/afrekenen" class="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Afrekenen
+                </a>
+            </div>
+            <x-filament-actions::modals />
+        </section>
+        @endif
+    </div>
+    ```
+</CodeGroup>

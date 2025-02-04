@@ -1,0 +1,49 @@
+---
+title: 'Orders'
+description: 'Description about the orders in Firepit CMS'
+icon: 'bag-shopping'
+---
+
+Handling orders is quite easy, here's a sample of creating an order:
+
+```php
+$order = ShopOrder::create([
+    'billing_first_name' => $data['firstName'],
+    'billing_last_name' => $data['lastName'],
+    'billing_company' => $data['company'],
+    'billing_address' => trim($data['address']),
+    'billing_address_house_number' => trim($data['addressNo']),
+    'billing_city' => trim($data['city']),
+    'billing_country' => $data['country'],
+    'billing_zip' => trim($data['zip']),
+    'billing_phone' => $data['phone'] ?? null,
+    'email' => $data['email'],
+    'shipment_type' => 'send',
+    'shipping_costs' => $this->shippingCosts ?? 0,
+    'ip' => request()->ip(),
+    'comment' => $data['comment'] ?? null,
+    'discount' => session('discount'),
+]);
+```
+
+To add items to that order:
+
+```php
+$items = LaraCart::getItems();
+
+foreach ($items as $item) {
+    $order->items()->create([
+        'name' => $item->name,
+        'sku' => $item->sku,
+        'comment' => $item->comment,
+        'shipping_cost' => $item->shipping_cost,
+        'price' => $item->price,
+        'total' => $item->price * 1,
+        'tax_total' => getTaxPrice($item->price, 21) * 1,
+        'tax_percentage' => 21,
+        'quantity' => 1,
+        'model_id' => $item->id,
+        'model_type' => get_class($item->model),
+    ]);
+}
+```

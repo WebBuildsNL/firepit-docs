@@ -40,6 +40,15 @@
       ]
     },
     {
+      "group": "Ecommerce",
+      "pages": [
+        "ecommerce/overview",
+        "ecommerce/cart",
+        "ecommerce/orders",
+        "ecommerce/examples"
+      ]
+    },
+    {
       "group": "Essentials",
       "pages": [
         "essentials/packages",
