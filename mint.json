@@ -40,6 +40,12 @@
       ]
     },
     {
+      "group": "CMS",
+      "pages": [
+        "cms/pages"
+      ]
+    },
+    {
       "group": "Ecommerce",
       "pages": [
         "ecommerce/overview",
