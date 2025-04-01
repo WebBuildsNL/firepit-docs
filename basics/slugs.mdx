@@ -3,36 +3,216 @@ title: 'Slugs'
 description: 'Describes how slugs work in the Firepit CMS'
 icon: 'cubes-stacked'
 ---
+# Slugs in Firepit CMS
 
-Slugs in the Firepit CMS are smart. They are stored inside the `slugs` table and there's an additional `slug_redirects`
-table to handle redirects.
+Slugs are an essential component of the Firepit CMS for creating SEO-friendly URLs for your content. This document covers how slugs are implemented, their features, and how to use them effectively in your Firepit CMS project.
 
-## Retrieving a model
+## Overview
 
-The most basic way to retrieve a model based on a slug:
+A slug is a URL-friendly version of a string, typically generated from a page title or other identifiable text. Slugs are used to create human-readable and search engine optimized URLs.
+
+Example:
+- Page title: "How to Get Started with Firepit CMS"
+- Generated slug: "how-to-get-started-with-firepit-cms"
+- Resulting URL: `https://yoursite.com/how-to-get-started-with-firepit-cms`
+
+## Key Features
+
+- **Automatic Generation**: Slugs are automatically created and updated based on model attributes
+- **Uniqueness**: System ensures all slugs are unique by appending numbers when needed
+- **Locale Awareness**: Slugs are stored with the current application locale
+- **History and Redirects**: Maintains a history of previous slugs to handle redirects
+- **SEO Protection**: Automatic 301 redirects from old slugs to new ones
+- **Date-based Slugs**: Optional date inclusion in slug structure
+- **Customizable**: Configurable source fields and formatting options
+
+## Implementation
+
+Firepit CMS implements slug functionality through a trait-based approach with dedicated models and database tables:
+
+### Core Components
+
+1. **Sluggable Trait**: The heart of the slug system that can be applied to any model
+2. **Slug Model**: Stores current slugs and their associations with content
+3. **SlugRedirect Model**: Maintains old slugs for redirection
+4. **DynamicRouter**: Handles routing requests to the correct content based on slugs
+
+### Database Structure
+
+Two primary tables handle slug functionality:
+
+- **slugs**: Stores current active slugs with polymorphic relationships to content
+- **slug_redirects**: Maintains a history of old slugs for redirection purposes
+
+## Using Slugs in Models
+
+### Adding Slug Support to Models
+
+To make your model support slugs, simply use the `Sluggable` trait:
 
 ```php
-Page::findBySlug('my-slug');
+<?php
+
+namespace App\Models;
+
+use Firepit\CMS\Traits\Sluggable;
+use Illuminate\Database\Eloquent\Model;
+
+class MyContent extends Model
+{
+    use Sluggable;
+
+    // By default, slugs are generated from the 'title' attribute
+    // Override if needed:
+
+    protected function getSlugSourceAttribute()
+    {
+        return $this->headline; // Use a different field as source
+    }
+}
 ```
 
-However, sometimes when a slug isn't found you want to return a 404:
+### Customizing Slug Generation
+
+You can customize various aspects of slug generation:
 
 ```php
-Page::findBySlugOrFail('my-slug');
+<?php
+
+namespace App\Models;
+
+use Firepit\CMS\Traits\Sluggable;
+use Illuminate\Database\Eloquent\Model;
+
+class Article extends Model
+{
+    use Sluggable;
+
+    // Use multiple fields in slug generation
+    protected function getSlugSourceAttribute()
+    {
+        return $this->category . ' ' . $this->title;
+    }
+
+    // Include date in slugs
+    public function usesDateBasedSlugs(): bool
+    {
+        return true;
+    }
+
+    // Customize date format for slugs
+    public function getSlugDateFormat(): string
+    {
+        return 'Y/m'; // Creates slugs like: 2025/04/my-article-title
+    }
+}
 ```
 
-Additionally, you can also extend this to support slugs that have changed and redirect to it:
+## Accessing and Using Slugs
+
+### Getting the Current Slug
 
 ```php
-Page::findBySlugOrRedirectOrFail('my-slug');
+$article = Article::find(1);
+$slug = $article->getSlug(); // Returns the current slug string
+$path = $article->getPath(); // Returns the full path including any date components
 ```
 
-## What models support slugs
+### Finding Models by Slug
 
-- Pages
-- News
-- Projects
-- Courses
-- Course categories
-- Shop products
-- Shop categories
+```php
+// Find a model by its slug
+$article = Article::findBySlug('my-article-title');
+
+// Find with exception if not found
+$article = Article::findBySlugOrFail('my-article-title');
+
+// Find with redirect handling - important for handling old URLs
+$article = Article::findBySlugOrRedirectOrFail('my-article-title');
+```
+
+## Locale Handling
+
+Slugs in Firepit CMS are locale-aware and use the current application locale:
+
+```php
+// Current app locale is 'en'
+$article->title = 'My English Title';
+$article->save();
+// Creates slug: 'my-english-title' with locale 'en'
+
+// Switch locale
+app()->setLocale('fr');
+$article->title = 'Mon Titre Français';
+$article->save();
+// Creates slug: 'mon-titre-francais' with locale 'fr'
+
+// Get slug for current locale
+$slug = $article->getSlug(); // Returns slug for current app locale
+```
+
+The system automatically tracks which locale each slug belongs to, allowing you to have different URLs for different language versions of your content.
+
+## Slug Redirects
+
+When a slug changes (for example, when a page title is edited), Firepit CMS:
+
+1. Creates a new slug for the current title
+2. Moves the old slug to the `slug_redirects` table
+3. Automatically sets up 301 redirects from old URLs to new ones
+
+This redirection happens transparently to maintain SEO rankings and prevent broken links.
+
+## Understanding findBySlugOrRedirectOrFail
+
+The `findBySlugOrRedirectOrFail` method is a powerful tool for handling both current and historical slugs:
+
+```php
+// Try to find a page by slug, with redirect handling
+$page = Page::findBySlugOrRedirectOrFail($slug, ['*'], '/fallback-url');
+```
+
+When this method is called:
+
+1. It first attempts to find the model using the current slug
+2. If found, it returns the model immediately
+3. If not found, it checks the `slug_redirects` table for any historical matches
+4. If a redirect is found:
+- It generates a new URL by replacing the old slug with the current one
+- Performs a 301 redirect to the new URL
+5. If no redirect is found:
+- It redirects to the fallback URL if provided
+- Otherwise, it aborts with a 404 error
+
+This method is essential for maintaining SEO value when content URLs change.
+
+## Dynamic Routing
+
+The Firepit CMS `DynamicRouter` handles routing to content based on slugs:
+
+1. Intercepts requests that don't match explicit routes
+2. Looks up the slug in the database
+3. Redirects to the new URL if the slug has changed
+4. Loads and renders the appropriate content if the slug is current
+
+For performance, the router caches page slugs to minimize database queries.
+
+## Best Practices
+
+- **Keep Titles Descriptive**: Since slugs are generated from titles, ensure your titles are descriptive and relevant
+- **Avoid Changing Slugs for Established Content**: While redirects will handle changes, it's best to keep URLs stable for important pages
+- **Use Custom Slugs Sparingly**: The automatic system works well for most cases, but you can manually set slugs when needed
+- **Consider URL Structure**: Use date-based slugs for chronological content like blog posts
+- **Use findBySlugOrRedirectOrFail**: For front-end routes, always use this method to ensure proper handling of redirects
+
+## Technical Notes
+
+- Slug generation removes special characters, converts spaces to hyphens, and ensures URL compatibility
+- The system handles conflict resolution with incrementing numbers (e.g., "my-title", "my-title-1", "my-title-2")
+- Slugs are stored in lowercase to avoid case-sensitivity issues in URLs
+- Database indexes optimize slug lookups for performance
+- Each slug is associated with the application locale at the time of creation
+
+---
+
+This documentation covers the fundamentals of the Firepit CMS slug system. For more advanced usage or specific implementation details, refer to the source code or the complete Firepit CMS documentation.
