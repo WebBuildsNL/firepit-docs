@@ -1,0 +1,46 @@
+---
+title: 'Pages'
+description: ''
+icon: 'file'
+---
+
+You can easily create new pages through the admin panel.
+
+## Setup the dynamic router
+You can easily configure the dynamic router. The router uses a fallback route so it's important to add the CMS routes at
+the very end of your routes file. The Firepit CMS has a very simple helper method for registering the routes.
+
+```php
+<?php
+
+// Any existing hard coded routes
+Route::view('/', 'welcome');
+
+// Register CMS routes by adding this at the very bottom of the file
+cms()->routes();
+
+```
+
+## Creating blocks
+We use Paver Editor. See [https://pavereditor.com/docs/beta/making-blocks](https://pavereditor.com/docs/beta/making-blocks).
+
+## Register blocks
+```php
+cms()->registerBlock(Hero::class);
+```
+
+## Rendering pages
+### Rendering all page content
+```blade
+<x-cms::page :$page />
+```
+
+### Rendering only rich editor content
+```blade
+<x-cms::page.content :$page />
+```
+
+### Rendering only blocks
+```blade
+<x-cms::page.blocks :$page />
+```
